@@ -329,8 +329,9 @@ class reg:
         'request': [
             # {'func': <function func at 0x0000000000000000>}
         ],
-        'requestApps': [
-            # {'type': 'poke', 'func': <function func at 0x0000000000000000>}
+        'Apps': [
+            # Bot 启动成功后在多线程调用
+            # <function func at 0x0000000000000000>
         ],
         'msgApp': [
             # <function func at 0x0000000000000000>
@@ -383,6 +384,9 @@ class reg:
 
     def registerMessage(self, func):
         self.reg_list['msgApp'].append(func)
+
+    def registerEvent(self, func):
+        self.reg_list['Apps'].append(func)
 
 
 class BotWebsocket:
@@ -475,6 +479,22 @@ class BotWebsocket:
         # 以下是初始化代码
         self.logger.info('Bot.py初始化完成。')
 
+        # 启动线程App
+        err = []
+        i = None
+        try:
+            for i in self.reg.reg_list['Apps']:
+                threading.Thread(target=i).start()
+        except Exception as e:
+            err.append({'func': i, 'error': traceback.format_exc(), 'except': e})
+        if len(err) > 0:
+            print(f"在启动子程序时，共有{len(self.reg.reg_list['Apps'])}个子程序，启动失败{len(err)}个。")
+            for i in err:
+                print(f"在启动子程序{i['func']}时发生错误，错误类型：{i['except']}。")
+                print(i['error'])
+        else:
+            print(f"在启动子程序时，共有{len(self.reg.reg_list['Apps'])}个子程序，已全部启动成功。")
+
     def _jsonParse(self, t):
         # 事件分拣
         try:
@@ -498,6 +518,7 @@ class BotWebsocket:
             time.sleep(5)
 
     def _ret_api(self, echo, js):
+        # print(js)
         self.recv_api[echo] = {'recv': True, 'data': js['data']}
 
     def _message(self, js: dict):
@@ -510,11 +531,11 @@ class BotWebsocket:
                 nickname=js["sender"]['nickname'],
                 sex=js["sender"]['sex'],
                 age=js["sender"]['age'],
-                card=js["sender"]['card'],
-                area=js["sender"]['area'],
-                level=js["sender"]['level'],
-                role=js["sender"]['role'],
-                title=js["sender"]['title']
+                # card=js["sender"]['card'],
+                # area=js["sender"]['area'],
+                # level=js["sender"]['level'],
+                # role=js["sender"]['role'],
+                # title=js["sender"]['title']
             )
             message = Message(
                 send_time=js['time'],
@@ -726,6 +747,7 @@ class BotWebsocket:
                 ret = self.recv_api[id]
                 del self.recv_api[id]
                 return ret
+            time.sleep(0.001)
 
     def _send_data_no_ret(self, data):
         # 发包，没有响应
@@ -738,12 +760,14 @@ class BotWebsocket:
             id = data["echo"]
         else:
             data["echo"] = id
-        asyncio.run(self._sendWebsocket(json.dumps(data)))
-        while True:
-            if id in self.recv_api:
-                ret = self.recv_api[id]
-                del self.recv_api[id]
-                return ret
+        return self._send_data(data, id)
+        # asyncio.run(self._sendWebsocket(json.dumps(data)))
+        # while True:
+        #     if id in self.recv_api:
+        #         ret = self.recv_api[id]
+        #         del self.recv_api[id]
+        #         return ret
+        #     time.sleep(0.01)
 
     def _send_group_msg(self, group_id, message):
         id = f'{uuid.uuid1()}'

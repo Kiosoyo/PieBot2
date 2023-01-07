@@ -101,5 +101,5 @@ class bot(BotWebsocket):
         if headers is None:
             headers = []
         sdata = {'action': 'download_file',
-                 'params': {'file_url': file_url, 'thread_count': thread_count, 'headers': headers}}
+                 'params': {'url': file_url, 'thread_count': thread_count, 'headers': headers}}
         return self.send_data(sdata)
